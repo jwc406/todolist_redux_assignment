@@ -1,0 +1,72 @@
+1. 추가하기 버튼을 클릭해도 추가한 아이템이 화면에 표시되지 않음.
+- List 컴포넌트에서는 redex로 생성한 전역 데이터 todos를 useSelector로 가져와서 보여주고 있지만, Form 컴포넌트에서 addTodo라는 action creator를 import했음에도 사용하지 않아 redux의 데이터를 정상적으로 추가시켜주지 않고 있습니다.  
+- 따라서 dispatch변수를 선언해 useDispatch()를 선언하여 사용해주고, 제출 버튼을 클릭했을 때 dispatch로 addTodo({...todo, id})를 실행하여 state를 변경할 수 있도록 합니다.
+
+  const dispatch = useDispatch();
+
+  const onSubmitHandler = (event) => {
+    event.preventDefault();
+    if (todo.title.trim() === "" || todo.body.trim() === "") return;
+
+    dispatch(addTodo({ ...todo, id }));
+
+    setTodo({
+      id: 0,
+      title: "",
+      body: "",
+      isDone: false,
+    });
+  };
+
+
+2. 추가하기 버튼 클릭 후 기존에 존재하던 아이템들이 사라짐.
+- todos module에서 ADD_TODO리듀서가 return할 때, todos 배열에 곧바로 payload 객체 자체를 반환하기 때문입니다. 따라서 정상적으로 출력되려면 기존 state를 복사한 뒤, todos에 state.todos의 복사본에 payload로 넘어온 새로운 todo를 추가해주어 렌더링되도록 해줍니다.
+
+case ADD_TODO:
+      return {
+	...state,
+        todos: [...state.todos, action.payload],
+      };
+
+3. 삭제 기능이 동작하지 않음. 
+- todos module에서 삭제하기 리듀서가 구현되어 있지 않기 때문입니다.
+- 삭제하기 action creator를 생성하고, 일치하는 케이스 내부에 코드를 작성합니다.
+- 복사된 원본 state에 filter 메서드를 통해 걸러진, payload로 넘어온 id와 state에 존재하는 todo들의 id와 같지 않은 요소들만 모아 반환된 새로운 todos를 주어 렌더링 해줍니다.
+
+case DELETE_TODO:
+      return {
+        ...state,
+        todos: state.todos.filter((todo) => todo.id !== action.payload),
+      };
+
+4. 상세 페이지에 진입 하였을 때 데이터가 업데이트 되지 않음.
+- dispatch를 통해 getTodoByID로 useParams로 넘어온 id를 넘겨주어 해당 id와 일치하는 todo를 받아오도록 합니다. 이 때 useState를 이용해 의존성 배열로 dispatch, id를 넣어주어 dispatch를 통해 받아온 todo의 값이 바뀔 때, 즉 상세페이지에 들어갈 때만 렌더링되도록 해 줍니다.
+
+const dispatch = useDispatch();
+  const todo = useSelector((state) => state.todos.todo);
+
+  const { id } = useParams();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    dispatch(getTodoByID(id));
+  }, [dispatch, id]);
+
+5. 완료된 카드의 상세 페이지에 진입 하였을 때 올바른 데이터를 불러오지 못함. 
+- 완료된 카드의 상세 페이지 진입 시, map의 index를 통해 index에 해당하는 페이지로 이동하게 되는데 id값은 초기값 이후로 nextId()를 이용해 넣어주기 때문에 순서대로 바뀌는 index로는 정상적으로 작동하지 않습니다. 따라서 진행중 카드와 동일하게 Linkto의 path로 todo.id를 넣어주어야 합니다.
+
+<StLink to={`/${todo.id}`} key={todo.id}>
+     <div>상세보기</div>
+</StLink>
+
+6. 취소 버튼 클릭시 기능이 작동하지 않음.
+- 완료 버튼과 동일하게 콜백 함수로 onToggleStatusTodo(todo.id)를 넣어주어야 합니다.
+
+<StButton
+    borderColor="green"
+    onClick={() => onToggleStatusTodo(todo.id)}
+>
+    {todo.isDone ? "취소!" : "완료!"}
+</StButton>
+
+
